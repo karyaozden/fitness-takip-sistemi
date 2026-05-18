@@ -1,66 +1,45 @@
 # FitTrack Fitness Takip Sistemi
 
-FitTrack, günlük antrenman, kalori, su tüketimi, hedef ve haftalık ilerleme takibi yapan basit bir web uygulamasıdır. Proje statik dosyalarla hazırlandığı için ek paket kurulumu olmadan tarayıcıda veya Netlify üzerinde çalışır.
+FitTrack; profil, antrenman, beslenme ve ilerleme kayıtlarını `localStorage` içinde JSON olarak saklayan React tabanlı bir fitness takip uygulamasıdır.
 
-## Özellikler
+## Route Yapısı
 
-- Günlük adım, kalori, antrenman süresi ve su tüketimi özeti
-- Antrenman türü, süre ve kalori bilgisiyle kayıt ekleme
-- Haftalık ilerleme grafiği
-- Hedef kontrol listesi
-- Su ve öğün takibi
-- Tarayıcı `localStorage` desteğiyle demo verilerinin korunması
+- `/`
+- `/profil`
+- `/antrenman`
+- `/beslenme`
+- `/ilerleme`
 
 ## Kurulum
 
-Bu repoyu bilgisayarınıza indirin:
+```bash
+npm install
+```
+
+## Geliştirme
 
 ```bash
-git clone <repo-linki>
-cd alieren_proje
+npm run dev
 ```
 
-Ek bağımlılık gerekmez.
-
-## Çalıştırma
-
-Dosyayı doğrudan tarayıcıda açabilirsiniz:
+## Build
 
 ```bash
-start index.html
+npm run build
 ```
 
-İsterseniz basit bir yerel sunucu ile de çalıştırabilirsiniz:
+## Netlify
 
-```bash
-node preview-server.mjs 5500
-```
+- Build command: `npm run build`
+- Publish folder: `dist`
 
-Sonra tarayıcıdan şu adresi açın:
+## Özellikler
 
-```text
-http://localhost:5500
-```
-
-## Netlify Deploy
-
-1. Netlify hesabınıza girin.
-2. `Add new site` > `Import an existing project` seçin.
-3. GitHub/GitLab üzerinden bu repoyu seçin.
-4. Build command alanını boş bırakın.
-5. Publish directory alanına `.` yazın.
-6. Deploy tamamlanınca oluşan canlı site linkini Linear issue içine ekleyin.
-
-## Proje Yapısı
-
-```text
-.
-├── assets/
-│   └── training.svg
-├── index.html
-├── netlify.toml
-├── preview-server.mjs
-├── script.js
-├── styles.css
-└── README.md
-```
+- Tek kayıtlı profil formu ve profil özeti
+- Kayıt olma, giriş yapma ve çıkış yapma ekranı
+- Serbest egzersiz adı, set, tekrar, süre ve tarih alanlarıyla antrenman kaydı
+- Öğün, kalori ve makro değerleriyle beslenme kaydı
+- Bugünün toplam kalori, protein, karbonhidrat ve yağ hesabı
+- Haftalık kilo değişimi formu, listeleme ve Recharts grafiği
+- Dashboard üzerinde profil, son antrenman, günlük beslenme ve son ilerleme özeti
+- `src/storage/fitnessStorage.js` içinde profil, antrenman, beslenme ve ilerleme için ayrı okuma/yazma fonksiyonları
