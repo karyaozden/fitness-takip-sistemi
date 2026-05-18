@@ -45,6 +45,12 @@ const navItems = [
   { to: "/ilerleme", label: "İlerleme" },
 ];
 
+const adminAccount = {
+  email: "admin@fittrack.com",
+  password: "admin123",
+  name: "Admin",
+};
+
 const emptyWorkout = {
   exerciseName: "",
   sets: "",
@@ -70,30 +76,37 @@ const emptyProgress = {
   hip: "",
 };
 
-function useFitnessData() {
-  const [profile, setProfileState] = useState(() => readProfile());
-  const [workouts, setWorkoutsState] = useState(() => readWorkouts());
-  const [nutrition, setNutritionState] = useState(() => readNutrition());
-  const [progress, setProgressState] = useState(() => readProgress());
+function useFitnessData(userId) {
+  const [profile, setProfileState] = useState(() => readProfile(userId));
+  const [workouts, setWorkoutsState] = useState(() => readWorkouts(userId));
+  const [nutrition, setNutritionState] = useState(() => readNutrition(userId));
+  const [progress, setProgressState] = useState(() => readProgress(userId));
+
+  useEffect(() => {
+    setProfileState(readProfile(userId));
+    setWorkoutsState(readWorkouts(userId));
+    setNutritionState(readNutrition(userId));
+    setProgressState(readProgress(userId));
+  }, [userId]);
 
   const setProfile = (value) => {
     setProfileState(value);
-    writeProfile(value);
+    writeProfile(value, userId);
   };
 
   const setWorkouts = (value) => {
     setWorkoutsState(value);
-    writeWorkouts(value);
+    writeWorkouts(value, userId);
   };
 
   const setNutrition = (value) => {
     setNutritionState(value);
-    writeNutrition(value);
+    writeNutrition(value, userId);
   };
 
   const setProgress = (value) => {
     setProgressState(value);
-    writeProgress(value);
+    writeProgress(value, userId);
   };
 
   return {
@@ -109,8 +122,9 @@ function useFitnessData() {
 }
 
 function App() {
-  const data = useFitnessData();
   const [session, setSession] = useState(() => readAuthSession());
+  const data = useFitnessData(session?.userId);
+  const visibleNavItems = session?.role === "admin" ? [...navItems, { to: "/admin", label: "Admin" }] : navItems;
 
   const login = (nextSession) => {
     writeAuthSession(nextSession);
@@ -139,7 +153,7 @@ function App() {
             <span>FitTrack</span>
           </NavLink>
           <nav className="nav-list" aria-label="Sayfalar">
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -153,7 +167,7 @@ function App() {
           <div className="member-card">
             <img src="/assets/training.svg" alt="Antrenman yapan kişi" />
             <p className="eyebrow">Oturum</p>
-            <strong>{session.name}</strong>
+            <strong>{data.profile?.fullName || session.name}</strong>
             <button className="secondary-button" type="button" onClick={logout}>
               Çıkış yap
             </button>
@@ -167,6 +181,7 @@ function App() {
             <Route path="/antrenman" element={<WorkoutPage {...data} />} />
             <Route path="/beslenme" element={<NutritionPage {...data} />} />
             <Route path="/ilerleme" element={<ProgressPage {...data} />} />
+            <Route path="/admin" element={<AdminPage session={session} {...data} />} />
           </Routes>
         </main>
       </div>
@@ -176,7 +191,16 @@ function App() {
 
 function AuthPage({ onAuth }) {
   const [mode, setMode] = useState("login");
-  const [form, setForm] = useState({ name: "", email: "", password: "", passwordAgain: "" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    passwordAgain: "",
+    age: "",
+    height: "",
+    weight: "",
+    goal: "kilo-verme",
+  });
   const [errors, setErrors] = useState([]);
 
   const isRegister = mode === "register";
@@ -191,6 +215,9 @@ function AuthPage({ onAuth }) {
     const users = readUsers();
     const nextErrors = [
       isRegister ? validateRequiredText(form.name, "Ad soyad") : "",
+      isRegister ? validatePositiveNumber(form.age, "Yaş") : "",
+      isRegister ? validatePositiveNumber(form.height, "Boy") : "",
+      isRegister ? validatePositiveNumber(form.weight, "Kilo") : "",
       validateRequiredText(email, "E-posta"),
       validateRequiredText(form.password, "Şifre"),
     ].filter(Boolean);
@@ -212,6 +239,16 @@ function AuthPage({ onAuth }) {
       return;
     }
 
+    if (!isRegister && email === adminAccount.email && form.password === adminAccount.password) {
+      onAuth({
+        userId: "admin",
+        name: adminAccount.name,
+        email: adminAccount.email,
+        role: "admin",
+      });
+      return;
+    }
+
     if (isRegister) {
       if (users.some((user) => user.email === email)) {
         setErrors(["Bu e-posta ile kayıt var. Giriş yapabilirsiniz."]);
@@ -225,7 +262,17 @@ function AuthPage({ onAuth }) {
         password: form.password,
       };
       writeUsers([...users, user]);
-      onAuth({ userId: user.id, name: user.name, email: user.email });
+      writeProfile(
+        {
+          fullName: form.name.trim(),
+          age: Number(form.age),
+          height: Number(form.height),
+          weight: Number(form.weight),
+          goal: form.goal,
+        },
+        user.id,
+      );
+      onAuth({ userId: user.id, name: user.name, email: user.email, role: "user" });
       return;
     }
 
@@ -240,7 +287,7 @@ function AuthPage({ onAuth }) {
       return;
     }
 
-    onAuth({ userId: registeredUser.id, name: registeredUser.name, email: registeredUser.email });
+    onAuth({ userId: registeredUser.id, name: registeredUser.name, email: registeredUser.email, role: "user" });
   }
 
   return (
@@ -287,6 +334,26 @@ function AuthPage({ onAuth }) {
               <input value={form.name} onChange={(event) => updateField("name", event.target.value)} />
             </Field>
           ) : null}
+          {isRegister ? (
+            <>
+              <Field label="Yaş">
+                <input type="number" min="0" value={form.age} onChange={(event) => updateField("age", event.target.value)} />
+              </Field>
+              <Field label="Boy cm">
+                <input type="number" min="0" value={form.height} onChange={(event) => updateField("height", event.target.value)} />
+              </Field>
+              <Field label="Kilo kg">
+                <input type="number" min="0" value={form.weight} onChange={(event) => updateField("weight", event.target.value)} />
+              </Field>
+              <Field label="Hedef">
+                <select value={form.goal} onChange={(event) => updateField("goal", event.target.value)}>
+                  <option value="kilo-verme">Kilo verme</option>
+                  <option value="kas-kazanma">Kas kazanma</option>
+                  <option value="fit-kalma">Fit kalma</option>
+                </select>
+              </Field>
+            </>
+          ) : null}
           <Field label="E-posta">
             <input type="email" value={form.email} onChange={(event) => updateField("email", event.target.value)} />
           </Field>
@@ -302,8 +369,84 @@ function AuthPage({ onAuth }) {
             {isRegister ? "Kayıt ol ve gir" : "Giriş yap"}
           </button>
         </form>
+        <p className="auth-note">Admin paneli için giriş: admin@fittrack.com / admin123</p>
       </section>
     </main>
+  );
+}
+
+function AdminPage({ session, profile, workouts, nutrition, progress }) {
+  const [users, setUsers] = useState(() => readUsers());
+
+  if (session.role !== "admin") {
+    return (
+      <>
+        <PageHeader eyebrow="Admin" title="Yetkisiz erişim" />
+        <article className="panel">
+          <p className="empty-text">Bu sayfayı sadece admin hesabı görüntüleyebilir.</p>
+        </article>
+      </>
+    );
+  }
+
+  function deleteUser(userId) {
+    const nextUsers = users.filter((user) => user.id !== userId);
+    setUsers(nextUsers);
+    writeUsers(nextUsers);
+  }
+
+  return (
+    <>
+      <PageHeader eyebrow="Admin" title="Yönetim paneli" />
+      <section className="metrics">
+        <SummaryCard title="Kullanıcı" value={users.length} detail="Kayıtlı hesap" tone="green" />
+        <SummaryCard title="Antrenman" value={workouts.length} detail="Toplam kayıt" tone="blue" />
+        <SummaryCard title="Beslenme" value={nutrition.length} detail="Toplam öğün" tone="coral" />
+        <SummaryCard title="İlerleme" value={progress.length} detail={profile ? `${profile.fullName} profili var` : "Profil yok"} tone="yellow" />
+      </section>
+
+      <section className="two-column">
+        <article className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Kullanıcılar</p>
+              <h2>Kayıtlı kullanıcılar</h2>
+            </div>
+          </div>
+          <ul className="activity-list">
+            {users.length ? (
+              users.map((user) => (
+                <li className="activity-item admin-user" key={user.id}>
+                  <div>
+                    <strong>{user.name}</strong>
+                    <span>{user.email}</span>
+                  </div>
+                  <button className="danger-button" type="button" onClick={() => deleteUser(user.id)}>
+                    Sil
+                  </button>
+                </li>
+              ))
+            ) : (
+              <li className="empty-text">Henüz kullanıcı kaydı yok.</li>
+            )}
+          </ul>
+        </article>
+
+        <article className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Sistem</p>
+              <h2>Admin bilgileri</h2>
+            </div>
+          </div>
+          <div className="detail-list">
+            <span><strong>Admin e-posta</strong>{adminAccount.email}</span>
+            <span><strong>Aktif oturum</strong>{session.name}</span>
+            <span><strong>Yetki</strong>Admin</span>
+          </div>
+        </article>
+      </section>
+    </>
   );
 }
 
@@ -323,6 +466,15 @@ function Dashboard({ profile, workouts, nutrition, progress }) {
   const todayMeals = nutrition.filter((item) => item.date === todayIso());
   const lastWorkout = newestByDate(workouts);
   const lastProgress = newestByDate(progress.map((item) => ({ ...item, date: item.weekStart })));
+  const weeklyWorkouts = workouts.filter((item) => {
+    const diff = new Date() - new Date(`${item.date}T00:00:00`);
+    return diff >= 0 && diff <= 6 * 24 * 60 * 60 * 1000;
+  });
+  const goalAdvice = {
+    "kilo-verme": "Kalori toplamlarını düzenli takip edin ve haftalık kilo değişimini not edin.",
+    "kas-kazanma": "Protein hedefinizi yüksek tutup kuvvet antrenmanlarındaki set ve tekrarları izleyin.",
+    "fit-kalma": "Haftalık hareket düzeninizi koruyup dengeli makro dağılımını takip edin.",
+  };
 
   return (
     <>
@@ -340,6 +492,28 @@ function Dashboard({ profile, workouts, nutrition, progress }) {
       </section>
 
       <section className="dashboard-grid">
+        <article className="panel advice-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Öneri</p>
+              <h2>Hedefe göre odak</h2>
+            </div>
+          </div>
+          <p>{profile ? goalAdvice[profile.goal] : "Profilinizi tamamlayınca hedefinize uygun kısa öneriler burada görünür."}</p>
+        </article>
+        <article className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Son 7 gün</p>
+              <h2>Antrenman özeti</h2>
+            </div>
+          </div>
+          <div className="macro-row">
+            <span>Antrenman: <strong>{weeklyWorkouts.length}</strong></span>
+            <span>Süre: <strong>{sumBy(weeklyWorkouts, "duration")} dk</strong></span>
+            <span>Ortalama: <strong>{weeklyWorkouts.length ? Math.round(sumBy(weeklyWorkouts, "duration") / weeklyWorkouts.length) : 0} dk</strong></span>
+          </div>
+        </article>
         <article className="panel">
           <div className="panel-heading">
             <div>
@@ -387,9 +561,17 @@ function ProfilePage({ profile, setProfile }) {
     profile || { fullName: "", age: "", height: "", weight: "", goal: "kilo-verme" },
   );
   const [errors, setErrors] = useState([]);
+  const [isEditing, setIsEditing] = useState(!profile);
 
   useEffect(() => {
-    if (profile) setForm(profile);
+    if (profile) {
+      setForm(profile);
+      setIsEditing(false);
+    } else {
+      setForm({ fullName: "", age: "", height: "", weight: "", goal: "kilo-verme" });
+      setIsEditing(true);
+    }
+    setErrors([]);
   }, [profile]);
 
   function submit(event) {
@@ -414,53 +596,88 @@ function ProfilePage({ profile, setProfile }) {
       goal: form.goal,
     });
     setErrors([]);
+    setIsEditing(false);
   }
 
   return (
     <>
-      <PageHeader eyebrow="Profil" title="Kişisel bilgiler" meta="Tek kayıt" />
+      <PageHeader eyebrow="Profil" title="Kişisel bilgiler" />
       <section className="two-column">
-        <FormPanel title="Profil kaydet" errors={errors} onSubmit={submit}>
-          <Field label="Ad Soyad">
-            <input value={form.fullName} onChange={(event) => setForm({ ...form, fullName: event.target.value })} />
-          </Field>
-          <Field label="Yaş">
-            <input type="number" min="0" value={form.age} onChange={(event) => setForm({ ...form, age: event.target.value })} />
-          </Field>
-          <Field label="Boy cm">
-            <input type="number" min="0" value={form.height} onChange={(event) => setForm({ ...form, height: event.target.value })} />
-          </Field>
-          <Field label="Kilo kg">
-            <input type="number" min="0" value={form.weight} onChange={(event) => setForm({ ...form, weight: event.target.value })} />
-          </Field>
-          <Field label="Hedef">
-            <select value={form.goal} onChange={(event) => setForm({ ...form, goal: event.target.value })}>
-              <option value="kilo-verme">Kilo verme</option>
-              <option value="kas-kazanma">Kas kazanma</option>
-              <option value="fit-kalma">Fit kalma</option>
-            </select>
-          </Field>
-          <button className="primary-button" type="submit">Profili kaydet</button>
-        </FormPanel>
-        <article className="panel">
+        <article className="panel profile-summary-panel">
           <div className="panel-heading">
             <div>
               <p className="eyebrow">Özet</p>
-              <h2>Kaydedilen profil</h2>
+              <h2>Profil bilgileri</h2>
             </div>
+            {profile ? (
+              <button className="outline-button" type="button" onClick={() => setIsEditing(true)}>
+                Profili güncelle
+              </button>
+            ) : null}
           </div>
           {profile ? (
-            <div className="detail-list">
-              <span><strong>Ad Soyad</strong>{profile.fullName}</span>
-              <span><strong>Yaş</strong>{profile.age}</span>
-              <span><strong>Boy</strong>{profile.height} cm</span>
-              <span><strong>Kilo</strong>{profile.weight} kg</span>
-              <span><strong>Hedef</strong>{formatGoal(profile.goal)}</span>
+            <div className="profile-overview">
+              <div className="profile-identity">
+                <span className="profile-avatar">{profile.fullName.charAt(0).toUpperCase()}</span>
+                <div>
+                  <strong>{profile.fullName}</strong>
+                  <p>{formatGoal(profile.goal)}</p>
+                </div>
+              </div>
+              <div className="profile-stats">
+                <span><strong>{profile.age}</strong>Yaş</span>
+                <span><strong>{profile.height} cm</strong>Boy</span>
+                <span><strong>{profile.weight} kg</strong>Kilo</span>
+              </div>
+              <div className="profile-note">
+                <strong>Hedef</strong>
+                <p>{formatGoal(profile.goal)} hedefine göre antrenman, beslenme ve ilerleme kayıtlarınızı takip edebilirsiniz.</p>
+              </div>
             </div>
           ) : (
-            <p className="empty-text">Henüz profil eklenmedi.</p>
+            <p className="empty-text">Henüz profil eklenmedi. İlk profil kaydını oluşturun.</p>
           )}
         </article>
+
+        {isEditing ? (
+          <FormPanel title={profile ? "Profili düzenle" : "Profil kaydet"} errors={errors} onSubmit={submit}>
+            <Field label="Ad Soyad">
+              <input value={form.fullName} onChange={(event) => setForm({ ...form, fullName: event.target.value })} />
+            </Field>
+            <Field label="Yaş">
+              <input type="number" min="0" value={form.age} onChange={(event) => setForm({ ...form, age: event.target.value })} />
+            </Field>
+            <Field label="Boy cm">
+              <input type="number" min="0" value={form.height} onChange={(event) => setForm({ ...form, height: event.target.value })} />
+            </Field>
+            <Field label="Kilo kg">
+              <input type="number" min="0" value={form.weight} onChange={(event) => setForm({ ...form, weight: event.target.value })} />
+            </Field>
+            <Field label="Hedef">
+              <select value={form.goal} onChange={(event) => setForm({ ...form, goal: event.target.value })}>
+                <option value="kilo-verme">Kilo verme</option>
+                <option value="kas-kazanma">Kas kazanma</option>
+                <option value="fit-kalma">Fit kalma</option>
+              </select>
+            </Field>
+            <div className="form-actions">
+              {profile ? (
+                <button
+                  className="outline-button"
+                  type="button"
+                  onClick={() => {
+                    setForm(profile);
+                    setErrors([]);
+                    setIsEditing(false);
+                  }}
+                >
+                  İptal
+                </button>
+              ) : null}
+              <button className="primary-button" type="submit">{profile ? "Değişiklikleri kaydet" : "Profili kaydet"}</button>
+            </div>
+          </FormPanel>
+        ) : null}
       </section>
     </>
   );
@@ -469,6 +686,7 @@ function ProfilePage({ profile, setProfile }) {
 function WorkoutPage({ workouts, setWorkouts }) {
   const [form, setForm] = useState(emptyWorkout);
   const [errors, setErrors] = useState([]);
+  const [editingId, setEditingId] = useState(null);
 
   function submit(event) {
     event.preventDefault();
@@ -485,26 +703,45 @@ function WorkoutPage({ workouts, setWorkouts }) {
       return;
     }
 
-    setWorkouts([
-      ...workouts,
-      {
-        id: crypto.randomUUID(),
-        exerciseName: form.exerciseName.trim(),
-        sets: Number(form.sets),
-        reps: Number(form.reps),
-        duration: Number(form.duration),
-        date: form.date,
-      },
-    ]);
+    const workoutData = {
+      id: editingId || crypto.randomUUID(),
+      exerciseName: form.exerciseName.trim(),
+      sets: Number(form.sets),
+      reps: Number(form.reps),
+      duration: Number(form.duration),
+      date: form.date,
+    };
+    setWorkouts(editingId ? workouts.map((item) => (item.id === editingId ? workoutData : item)) : [...workouts, workoutData]);
     setForm(emptyWorkout);
+    setEditingId(null);
+    setErrors([]);
+  }
+
+  function deleteWorkout(workoutId) {
+    setWorkouts(workouts.filter((workout) => workout.id !== workoutId));
+    if (editingId === workoutId) {
+      setForm(emptyWorkout);
+      setEditingId(null);
+    }
+  }
+
+  function editWorkout(workout) {
+    setEditingId(workout.id);
+    setForm({
+      exerciseName: workout.exerciseName,
+      sets: String(workout.sets),
+      reps: String(workout.reps),
+      duration: String(workout.duration),
+      date: workout.date,
+    });
     setErrors([]);
   }
 
   return (
     <>
-      <PageHeader eyebrow="Antrenman" title="Egzersiz kayıtları" meta="/antrenman" />
+      <PageHeader eyebrow="Antrenman" title="Egzersiz kayıtları" />
       <section className="two-column">
-        <FormPanel title="Antrenman ekle" errors={errors} onSubmit={submit}>
+        <FormPanel title={editingId ? "Antrenmanı düzenle" : "Antrenman ekle"} errors={errors} onSubmit={submit}>
           <Field label="Egzersiz adı">
             <input value={form.exerciseName} onChange={(event) => setForm({ ...form, exerciseName: event.target.value })} />
           </Field>
@@ -520,7 +757,22 @@ function WorkoutPage({ workouts, setWorkouts }) {
           <Field label="Tarih">
             <input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} />
           </Field>
-          <button className="primary-button" type="submit">Antrenmanı kaydet</button>
+          <div className="form-actions">
+            {editingId ? (
+              <button
+                className="outline-button"
+                type="button"
+                onClick={() => {
+                  setForm(emptyWorkout);
+                  setEditingId(null);
+                  setErrors([]);
+                }}
+              >
+                İptal
+              </button>
+            ) : null}
+            <button className="primary-button" type="submit">{editingId ? "Değişiklikleri kaydet" : "Antrenmanı kaydet"}</button>
+          </div>
         </FormPanel>
         <ListPanel title="Antrenman listesi" empty="Henüz antrenman eklenmedi.">
           {workouts.length
@@ -530,7 +782,15 @@ function WorkoutPage({ workouts, setWorkouts }) {
                     <strong>{workout.exerciseName}</strong>
                     <span>{formatDate(workout.date)} · {workout.sets} set · {workout.reps} tekrar</span>
                   </div>
-                  <strong>{workout.duration} dk</strong>
+                  <div className="list-actions">
+                    <strong>{workout.duration} dk</strong>
+                    <button className="outline-button compact" type="button" onClick={() => editWorkout(workout)}>
+                      Düzenle
+                    </button>
+                    <button className="danger-button compact" type="button" onClick={() => deleteWorkout(workout.id)}>
+                      Sil
+                    </button>
+                  </div>
                 </li>
               ))
             : null}
@@ -543,7 +803,32 @@ function WorkoutPage({ workouts, setWorkouts }) {
 function NutritionPage({ nutrition, setNutrition }) {
   const [form, setForm] = useState(emptyMeal);
   const [errors, setErrors] = useState([]);
-  const todayMeals = nutrition.filter((item) => item.date === todayIso());
+  const [selectedDate, setSelectedDate] = useState(todayIso());
+  const [editingId, setEditingId] = useState(null);
+  const [chartMetric, setChartMetric] = useState("calories");
+  const selectedMeals = nutrition.filter((item) => item.date === selectedDate);
+  const nutritionChartOptions = {
+    calories: { label: "Kalori", unit: "kcal", color: "#df6f57" },
+    protein: { label: "Protein", unit: "g", color: "#2f9e5d" },
+    carbs: { label: "Karbonhidrat", unit: "g", color: "#2f6fb7" },
+    fat: { label: "Yağ", unit: "g", color: "#d9a129" },
+  };
+  const nutritionChartData = useMemo(() => {
+    const dailyTotals = nutrition.reduce((totals, meal) => {
+      if (!totals[meal.date]) {
+        totals[meal.date] = { date: meal.date, calories: 0, protein: 0, carbs: 0, fat: 0 };
+      }
+      totals[meal.date].calories += Number(meal.calories || 0);
+      totals[meal.date].protein += Number(meal.protein || 0);
+      totals[meal.date].carbs += Number(meal.carbs || 0);
+      totals[meal.date].fat += Number(meal.fat || 0);
+      return totals;
+    }, {});
+
+    return Object.values(dailyTotals)
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+      .map((item) => ({ ...item, tarih: formatDate(item.date) }));
+  }, [nutrition]);
 
   function submit(event) {
     event.preventDefault();
@@ -560,33 +845,101 @@ function NutritionPage({ nutrition, setNutrition }) {
       return;
     }
 
-    setNutrition([
-      ...nutrition,
-      {
-        id: crypto.randomUUID(),
-        mealName: form.mealName,
-        calories: Number(form.calories),
-        protein: Number(form.protein),
-        carbs: Number(form.carbs),
-        fat: Number(form.fat),
-        date: form.date,
-      },
-    ]);
+    const mealData = {
+      id: editingId || crypto.randomUUID(),
+      mealName: form.mealName,
+      calories: Number(form.calories),
+      protein: Number(form.protein),
+      carbs: Number(form.carbs),
+      fat: Number(form.fat),
+      date: form.date,
+    };
+    setNutrition(editingId ? nutrition.map((item) => (item.id === editingId ? mealData : item)) : [...nutrition, mealData]);
     setForm(emptyMeal);
+    setEditingId(null);
+    setErrors([]);
+  }
+
+  function deleteMeal(mealId) {
+    setNutrition(nutrition.filter((meal) => meal.id !== mealId));
+    if (editingId === mealId) {
+      setForm(emptyMeal);
+      setEditingId(null);
+    }
+  }
+
+  function editMeal(meal) {
+    setEditingId(meal.id);
+    setForm({
+      mealName: meal.mealName,
+      calories: String(meal.calories),
+      protein: String(meal.protein),
+      carbs: String(meal.carbs),
+      fat: String(meal.fat),
+      date: meal.date,
+    });
     setErrors([]);
   }
 
   return (
     <>
-      <PageHeader eyebrow="Beslenme" title="Öğün ve makro takibi" meta="/beslenme" />
-      <section className="metrics nutrition-totals">
-        <SummaryCard title="Bugün kalori" value={`${sumBy(todayMeals, "calories")} kcal`} detail="Seçili gün: bugün" tone="coral" />
-        <SummaryCard title="Protein" value={`${sumBy(todayMeals, "protein")} g`} detail="Bugünün toplamı" tone="green" />
-        <SummaryCard title="Karbonhidrat" value={`${sumBy(todayMeals, "carbs")} g`} detail="Bugünün toplamı" tone="blue" />
-        <SummaryCard title="Yağ" value={`${sumBy(todayMeals, "fat")} g`} detail="Bugünün toplamı" tone="yellow" />
+      <PageHeader eyebrow="Beslenme" title="Öğün ve makro takibi" />
+      <section className="panel date-filter">
+        <div>
+          <p className="eyebrow">Gün seçimi</p>
+          <h2>Toplamları hangi gün için görmek istiyorsunuz?</h2>
+        </div>
+        <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
       </section>
+      <section className="metrics nutrition-totals">
+        <SummaryCard title="Kalori" value={`${sumBy(selectedMeals, "calories")} kcal`} detail={formatDate(selectedDate)} tone="coral" />
+        <SummaryCard title="Protein" value={`${sumBy(selectedMeals, "protein")} g`} detail="Seçili gün toplamı" tone="green" />
+        <SummaryCard title="Karbonhidrat" value={`${sumBy(selectedMeals, "carbs")} g`} detail="Seçili gün toplamı" tone="blue" />
+        <SummaryCard title="Yağ" value={`${sumBy(selectedMeals, "fat")} g`} detail="Seçili gün toplamı" tone="yellow" />
+      </section>
+      <article className="panel nutrition-chart-card">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Grafik</p>
+            <h2>{nutritionChartOptions[chartMetric].label} takibi</h2>
+          </div>
+        </div>
+        <div className="chart-panel">
+          {nutritionChartData.length ? (
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={nutritionChartData} margin={{ top: 20, right: 18, bottom: 10, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#dde5dc" />
+                <XAxis dataKey="tarih" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} width={44} />
+                <Tooltip formatter={(value) => [`${value} ${nutritionChartOptions[chartMetric].unit}`, nutritionChartOptions[chartMetric].label]} />
+                <Line
+                  type="monotone"
+                  dataKey={chartMetric}
+                  stroke={nutritionChartOptions[chartMetric].color}
+                  strokeWidth={3}
+                  dot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="empty-text">Grafik için henüz beslenme kaydı eklenmedi.</p>
+          )}
+        </div>
+        <div className="chart-toggle" aria-label="Grafik metriği">
+          {Object.entries(nutritionChartOptions).map(([key, option]) => (
+            <button
+              key={key}
+              className={chartMetric === key ? "active" : ""}
+              type="button"
+              onClick={() => setChartMetric(key)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </article>
       <section className="two-column">
-        <FormPanel title="Beslenme kaydı ekle" errors={errors} onSubmit={submit}>
+        <FormPanel title={editingId ? "Beslenme kaydını düzenle" : "Beslenme kaydı ekle"} errors={errors} onSubmit={submit}>
           <Field label="Öğün adı">
             <select value={form.mealName} onChange={(event) => setForm({ ...form, mealName: event.target.value })}>
               <option value="kahvaltı">Kahvaltı</option>
@@ -609,7 +962,22 @@ function NutritionPage({ nutrition, setNutrition }) {
           <Field label="Tarih">
             <input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} />
           </Field>
-          <button className="primary-button" type="submit">Öğünü kaydet</button>
+          <div className="form-actions">
+            {editingId ? (
+              <button
+                className="outline-button"
+                type="button"
+                onClick={() => {
+                  setForm(emptyMeal);
+                  setEditingId(null);
+                  setErrors([]);
+                }}
+              >
+                İptal
+              </button>
+            ) : null}
+            <button className="primary-button" type="submit">{editingId ? "Değişiklikleri kaydet" : "Öğünü kaydet"}</button>
+          </div>
         </FormPanel>
         <ListPanel title="Beslenme listesi" empty="Henüz beslenme kaydı eklenmedi.">
           {nutrition.length
@@ -619,7 +987,15 @@ function NutritionPage({ nutrition, setNutrition }) {
                     <strong>{meal.mealName}</strong>
                     <span>{formatDate(meal.date)} · P {meal.protein}g · K {meal.carbs}g · Y {meal.fat}g</span>
                   </div>
-                  <strong>{meal.calories} kcal</strong>
+                  <div className="list-actions">
+                    <strong>{meal.calories} kcal</strong>
+                    <button className="outline-button compact" type="button" onClick={() => editMeal(meal)}>
+                      Düzenle
+                    </button>
+                    <button className="danger-button compact" type="button" onClick={() => deleteMeal(meal.id)}>
+                      Sil
+                    </button>
+                  </div>
                 </li>
               ))
             : null}
@@ -632,11 +1008,14 @@ function NutritionPage({ nutrition, setNutrition }) {
 function ProgressPage({ progress, setProgress }) {
   const [form, setForm] = useState(emptyProgress);
   const [errors, setErrors] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const sortedProgress = [...progress].sort((a, b) => String(a.weekStart).localeCompare(String(b.weekStart)));
+  const latestProgress = sortedProgress[sortedProgress.length - 1];
+  const previousProgress = sortedProgress[sortedProgress.length - 2];
+  const weightDiff = latestProgress && previousProgress ? Number((latestProgress.weight - previousProgress.weight).toFixed(1)) : null;
   const chartData = useMemo(
     () =>
-      [...progress]
-        .sort((a, b) => String(a.weekStart).localeCompare(String(b.weekStart)))
-        .map((item) => ({ tarih: formatDate(item.weekStart), kilo: item.weight })),
+      sortedProgress.map((item) => ({ tarih: formatDate(item.weekStart), kilo: item.weight })),
     [progress],
   );
 
@@ -655,26 +1034,52 @@ function ProgressPage({ progress, setProgress }) {
       return;
     }
 
-    setProgress([
-      ...progress,
-      {
-        id: crypto.randomUUID(),
-        weekStart: form.weekStart,
-        weight: Number(form.weight),
-        chest: form.chest === "" ? "" : Number(form.chest),
-        waist: form.waist === "" ? "" : Number(form.waist),
-        hip: form.hip === "" ? "" : Number(form.hip),
-      },
-    ]);
+    const progressData = {
+      id: editingId || crypto.randomUUID(),
+      weekStart: form.weekStart,
+      weight: Number(form.weight),
+      chest: form.chest === "" ? "" : Number(form.chest),
+      waist: form.waist === "" ? "" : Number(form.waist),
+      hip: form.hip === "" ? "" : Number(form.hip),
+    };
+    setProgress(editingId ? progress.map((item) => (item.id === editingId ? progressData : item)) : [...progress, progressData]);
     setForm(emptyProgress);
+    setEditingId(null);
+    setErrors([]);
+  }
+
+  function deleteProgress(progressId) {
+    setProgress(progress.filter((item) => item.id !== progressId));
+    if (editingId === progressId) {
+      setForm(emptyProgress);
+      setEditingId(null);
+    }
+  }
+
+  function editProgress(item) {
+    setEditingId(item.id);
+    setForm({
+      weekStart: item.weekStart,
+      weight: String(item.weight),
+      chest: item.chest === "" ? "" : String(item.chest),
+      waist: item.waist === "" ? "" : String(item.waist),
+      hip: item.hip === "" ? "" : String(item.hip),
+    });
     setErrors([]);
   }
 
   return (
     <>
-      <PageHeader eyebrow="İlerleme" title="Haftalık kilo değişimi" meta="/ilerleme" />
+      <PageHeader eyebrow="İlerleme" title="Haftalık kilo değişimi" />
+      <section className="panel progress-delta">
+        <div>
+          <p className="eyebrow">Son değişim</p>
+          <h2>{weightDiff === null ? "Karşılaştırma için en az iki kayıt gerekir" : `${weightDiff > 0 ? "+" : ""}${weightDiff} kg`}</h2>
+        </div>
+        <p>{latestProgress ? `Son kayıt: ${formatDate(latestProgress.weekStart)} · ${latestProgress.weight} kg` : "Henüz ilerleme kaydı eklenmedi."}</p>
+      </section>
       <section className="two-column">
-        <FormPanel title="Haftalık kayıt ekle" errors={errors} onSubmit={submit}>
+        <FormPanel title={editingId ? "İlerleme kaydını düzenle" : "Haftalık kayıt ekle"} errors={errors} onSubmit={submit}>
           <Field label="Hafta başlangıcı">
             <input type="date" value={form.weekStart} onChange={(event) => setForm({ ...form, weekStart: event.target.value })} />
           </Field>
@@ -690,7 +1095,22 @@ function ProgressPage({ progress, setProgress }) {
           <Field label="Kalça cm (opsiyonel)">
             <input type="number" min="0" step="0.1" value={form.hip} onChange={(event) => setForm({ ...form, hip: event.target.value })} />
           </Field>
-          <button className="primary-button" type="submit">İlerlemeyi kaydet</button>
+          <div className="form-actions">
+            {editingId ? (
+              <button
+                className="outline-button"
+                type="button"
+                onClick={() => {
+                  setForm(emptyProgress);
+                  setEditingId(null);
+                  setErrors([]);
+                }}
+              >
+                İptal
+              </button>
+            ) : null}
+            <button className="primary-button" type="submit">{editingId ? "Değişiklikleri kaydet" : "İlerlemeyi kaydet"}</button>
+          </div>
         </FormPanel>
         <article className="panel">
           <div className="panel-heading">
@@ -724,7 +1144,15 @@ function ProgressPage({ progress, setProgress }) {
                   <strong>{formatDate(item.weekStart)}</strong>
                   <span>Göğüs {item.chest || "-"} cm · Bel {item.waist || "-"} cm · Kalça {item.hip || "-"} cm</span>
                 </div>
-                <strong>{item.weight} kg</strong>
+                <div className="list-actions">
+                  <strong>{item.weight} kg</strong>
+                  <button className="outline-button compact" type="button" onClick={() => editProgress(item)}>
+                    Düzenle
+                  </button>
+                  <button className="danger-button compact" type="button" onClick={() => deleteProgress(item.id)}>
+                    Sil
+                  </button>
+                </div>
               </li>
             ))
           : null}

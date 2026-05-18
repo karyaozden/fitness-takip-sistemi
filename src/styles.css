@@ -30,6 +30,10 @@ select {
   font: inherit;
 }
 
+button {
+  white-space: normal;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
@@ -254,6 +258,23 @@ h2 {
   grid-column: 1 / -1;
 }
 
+.form-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  grid-column: 1 / -1;
+}
+
+.form-actions .primary-button,
+.form-actions .outline-button {
+  width: 100%;
+  grid-column: auto;
+}
+
+.form-actions > :only-child {
+  grid-column: 1 / -1;
+}
+
 select,
 input {
   width: 100%;
@@ -277,6 +298,28 @@ input {
 
 .primary-button:hover {
   background: #287f4d;
+}
+
+.outline-button {
+  min-height: 42px;
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  padding: 0 14px;
+  color: var(--green);
+  background: #fff;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.outline-button:hover {
+  color: #fff;
+  background: var(--green);
+}
+
+.outline-button.compact {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 0.82rem;
 }
 
 .secondary-button {
@@ -314,6 +357,17 @@ input {
   line-height: 1.6;
 }
 
+.auth-hero .admin-hint {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.72);
+  font-weight: 800;
+}
+
 .auth-card {
   width: 100%;
 }
@@ -348,6 +402,17 @@ input {
   grid-template-columns: 1fr;
 }
 
+.auth-note {
+  margin: 16px 0 0;
+  padding: 11px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: #fbfcfa;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .activity-list {
   display: grid;
   gap: 10px;
@@ -370,10 +435,41 @@ input {
   display: block;
 }
 
+.list-actions {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
 .activity-item span,
 .empty-text {
   color: var(--muted);
   font-size: 0.92rem;
+}
+
+.admin-user {
+  align-items: center;
+}
+
+.danger-button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 14px;
+  color: #fff;
+  background: var(--danger);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.danger-button:hover {
+  background: #8f1d14;
+}
+
+.danger-button.compact {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 0.82rem;
 }
 
 .empty-text {
@@ -406,6 +502,76 @@ input {
   font-size: 0.8rem;
 }
 
+.profile-summary-panel {
+  min-height: 100%;
+}
+
+.profile-overview {
+  display: grid;
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfa;
+}
+
+.profile-avatar {
+  display: grid;
+  flex: none;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--green);
+  font-size: 1.45rem;
+  font-weight: 800;
+}
+
+.profile-identity strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1.25rem;
+}
+
+.profile-identity p,
+.profile-note p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-stats span,
+.profile-note {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfa;
+}
+
+.profile-stats strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1.35rem;
+}
+
+.profile-note strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
 .error-box {
   display: grid;
   gap: 6px;
@@ -427,7 +593,61 @@ input {
   margin-top: 20px;
 }
 
+.nutrition-chart-card {
+  margin-bottom: 24px;
+}
+
+.chart-toggle {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.chart-toggle button {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: #fbfcfa;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.chart-toggle button.active {
+  color: #fff;
+  border-color: var(--green);
+  background: var(--green);
+}
+
 .nutrition-totals {
+  margin-bottom: 24px;
+}
+
+.advice-panel p,
+.progress-delta p {
+  margin: 16px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.date-filter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.date-filter input {
+  max-width: 220px;
+}
+
+.progress-delta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
   margin-bottom: 24px;
 }
 
@@ -441,7 +661,12 @@ input {
     height: auto;
   }
 
-  .member-card {
+  .nav-list {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    margin-top: 24px;
+  }
+
+  .member-card img {
     display: none;
   }
 
@@ -465,11 +690,58 @@ input {
     flex-direction: column;
   }
 
+  h1 {
+    font-size: 2rem;
+    line-height: 1.08;
+  }
+
+  .brand {
+    font-size: 1.1rem;
+  }
+
+  .nav-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .nav-link {
+    padding: 10px;
+    text-align: center;
+  }
+
+  .member-card {
+    margin-top: 18px;
+    padding: 14px;
+  }
+
+  .metric {
+    min-height: auto;
+  }
+
+  .activity-item {
+    grid-template-columns: 1fr;
+  }
+
+  .list-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-items: stretch;
+  }
+
+  .list-actions strong {
+    align-self: center;
+  }
+
+  .list-actions button {
+    width: 100%;
+  }
+
   .metrics,
   .dashboard-grid,
   .two-column,
   .data-form,
   .macro-row,
+  .profile-stats,
+  .chart-toggle,
   .auth-page {
     grid-template-columns: 1fr;
   }
@@ -478,7 +750,47 @@ input {
     padding: 20px;
   }
 
+  .date-filter,
+  .progress-delta,
+  .form-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .date-filter,
+  .progress-delta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .date-filter input,
   .date-pill {
     width: 100%;
+    max-width: none;
+  }
+}
+
+@media (max-width: 430px) {
+  .content,
+  .sidebar {
+    padding: 14px;
+  }
+
+  .panel,
+  .metric {
+    padding: 16px;
+  }
+
+  .nav-list,
+  .list-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-identity {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .chart-panel {
+    height: 240px;
   }
 }

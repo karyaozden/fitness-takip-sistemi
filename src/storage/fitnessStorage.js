@@ -5,6 +5,10 @@ const PROGRESS_KEY = "fittrack-progress";
 const USERS_KEY = "fittrack-users";
 const SESSION_KEY = "fittrack-session";
 
+function scopedKey(key, userId) {
+  return userId ? `${key}:${userId}` : key;
+}
+
 function readJson(key, fallback) {
   try {
     const value = localStorage.getItem(key);
@@ -18,36 +22,36 @@ function writeJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-export function readProfile() {
-  return readJson(PROFILE_KEY, null);
+export function readProfile(userId) {
+  return readJson(scopedKey(PROFILE_KEY, userId), null);
 }
 
-export function writeProfile(profile) {
-  writeJson(PROFILE_KEY, profile);
+export function writeProfile(profile, userId) {
+  writeJson(scopedKey(PROFILE_KEY, userId), profile);
 }
 
-export function readWorkouts() {
-  return readJson(WORKOUTS_KEY, []);
+export function readWorkouts(userId) {
+  return readJson(scopedKey(WORKOUTS_KEY, userId), []);
 }
 
-export function writeWorkouts(workouts) {
-  writeJson(WORKOUTS_KEY, workouts);
+export function writeWorkouts(workouts, userId) {
+  writeJson(scopedKey(WORKOUTS_KEY, userId), workouts);
 }
 
-export function readNutrition() {
-  return readJson(NUTRITION_KEY, []);
+export function readNutrition(userId) {
+  return readJson(scopedKey(NUTRITION_KEY, userId), []);
 }
 
-export function writeNutrition(entries) {
-  writeJson(NUTRITION_KEY, entries);
+export function writeNutrition(entries, userId) {
+  writeJson(scopedKey(NUTRITION_KEY, userId), entries);
 }
 
-export function readProgress() {
-  return readJson(PROGRESS_KEY, []);
+export function readProgress(userId) {
+  return readJson(scopedKey(PROGRESS_KEY, userId), []);
 }
 
-export function writeProgress(entries) {
-  writeJson(PROGRESS_KEY, entries);
+export function writeProgress(entries, userId) {
+  writeJson(scopedKey(PROGRESS_KEY, userId), entries);
 }
 
 export function readUsers() {

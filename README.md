@@ -37,6 +37,7 @@ npm run build
 
 - Tek kayıtlı profil formu ve profil özeti
 - Kayıt olma, giriş yapma ve çıkış yapma ekranı
+- `/admin` yönetim paneli ve admin girişi
 - Serbest egzersiz adı, set, tekrar, süre ve tarih alanlarıyla antrenman kaydı
 - Öğün, kalori ve makro değerleriyle beslenme kaydı
 - Bugünün toplam kalori, protein, karbonhidrat ve yağ hesabı
